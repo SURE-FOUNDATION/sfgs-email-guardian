@@ -36,7 +36,8 @@ export default async function handler(req, res) {
   }
 
   if (!canSend) {
-    res.status(429).json({ error: `Must wait ${intervalMinutes} minutes between emails.` });
+    const minutesLeft = Math.ceil(intervalMinutes - ((now.getTime() - new Date(lastSent.sent_at).getTime()) / 60000));
+    res.status(200).json({ success: false, message: `Must wait ${minutesLeft} minute(s) before the next email can be sent.` });
     return;
   }
 
