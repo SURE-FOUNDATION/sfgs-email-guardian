@@ -3,7 +3,14 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { StatCard } from "@/components/admin/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Mail, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import {
+  Users,
+  Mail,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+} from "lucide-react";
 import { format } from "date-fns";
 
 interface DashboardStats {
@@ -36,7 +43,9 @@ export default function Dashboard() {
           failedResult,
           lastCronResult,
         ] = await Promise.all([
-          supabase.from("students").select("id", { count: "exact", head: true }),
+          supabase
+            .from("students")
+            .select("id", { count: "exact", head: true }),
           supabase
             .from("email_queue")
             .select("id", { count: "exact", head: true })
@@ -77,7 +86,10 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <AdminLayout title="Dashboard" description="Overview of your email automation system">
+    <AdminLayout
+      title="Dashboard"
+      description="Overview of your email automation system"
+    >
       <div className="space-y-6 animate-fade-in">
         {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -118,7 +130,9 @@ export default function Dashboard() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-foreground">Last Cron Execution</p>
+                <p className="text-sm font-medium text-foreground">
+                  Last Cron Execution
+                </p>
                 <p className="text-sm text-muted-foreground">
                   {isLoading
                     ? "Loading..."
@@ -127,34 +141,14 @@ export default function Dashboard() {
                     : "No cron jobs have run yet"}
                 </p>
               </div>
-              <div className={`h-3 w-3 rounded-full ${stats.lastCronRun ? "bg-success" : "bg-muted"}`} />
+              <div
+                className={`h-3 w-3 rounded-full ${
+                  stats.lastCronRun ? "bg-success" : "bg-muted"
+                }`}
+              />
             </div>
           </CardContent>
         </Card>
-
-        {/* Quick Info */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Email Automation</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>• Upload PDFs named with matric numbers to automatically match students</p>
-              <p>• Emails are queued and sent gradually via external cron jobs</p>
-              <p>• Birthday emails are automatically detected and queued daily</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Getting Started</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>1. Add students with their matric numbers and parent emails</p>
-              <p>2. Upload PDFs named like: <code className="bg-muted px-1 rounded">2023.ENG.001.pdf</code></p>
-              <p>3. Configure settings and set up external cron triggers</p>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </AdminLayout>
   );
