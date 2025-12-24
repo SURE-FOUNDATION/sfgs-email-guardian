@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
+import birthdayTemplate from '../templates/birthdayTemplate.js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -64,15 +65,26 @@ export default async function handler(req, res) {
     },
   });
 
+  // Compose subject and message for birthday emails
+  let subject = pending.subject;
+  let message = pending.message;
+  if (pending.email_type === 'birthday') {
+    subject = `Happy Birthday from SFGS!`;
+    message = birthdayTemplate({ studentName: pending.students?.student_name || 'your child' });
+  }
+
   try {
     await transporter.sendMail({
       from: process.env.VITE_SMTP_USER,
       to: pending.recipient_email,
-      subject: pending.subject,
-      text: pending.message,
-      html: pending.attachments
-        ? `<p>${pending.message}</p>${JSON.parse(pending.attachments).map((url) => `<p><a href='${url}'>Attachment</a></p>`).join('')}`
-        : `<p>${pending.message}</p>`,
+      subject,
+      text: message.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ''),
+      html: `<p>${message}</p>`,
+      attachments: pending.attachments
+        ? JSON.parse(pending.attachments).map((url) => ({
+            path: url
+          }))
+        : [],
     });
     await supabase.from('email_queue').update({ status: 'sent', sent_at: now.toISOString() }).eq('id', pending.id);
     res.status(200).json({ success: true });
