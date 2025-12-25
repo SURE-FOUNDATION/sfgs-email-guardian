@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -50,6 +51,8 @@ export default function Students() {
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
 
   const fetchStudents = async () => {
     setIsLoading(true);
@@ -129,17 +132,24 @@ export default function Students() {
   };
 
   const handleDelete = async (student: Student) => {
-    if (!window.confirm(`Delete student ${student.student_name}?`)) return;
+    setStudentToDelete(student);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!studentToDelete) return;
+    setShowDeleteDialog(false);
     const { error } = await supabase
       .from("students")
       .delete()
-      .eq("id", student.id);
+      .eq("id", studentToDelete.id);
     if (error) {
       toast({ title: "Failed to delete student", variant: "destructive" });
     } else {
       toast({ title: "Student deleted" });
       fetchStudents();
     }
+    setStudentToDelete(null);
   };
 
   const openEmailModal = (student: Student) => {
@@ -272,89 +282,179 @@ export default function Students() {
 
   return (
     <AdminLayout title="Students" description="Manage student records">
-      <Card className="animate-fade-in">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 justify-between">
-            <span>Student List</span>
-            <Button onClick={openAddModal}>Add Student</Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 flex items-center gap-2">
-            <Input
-              placeholder="Filter by name or matric number..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-xs"
-            />
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Matric</TableHead>
-                <TableHead>DOB</TableHead>
-                <TableHead>Parent Email 1</TableHead>
-                <TableHead>Parent Email 2</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center">
-                    Loading...
-                  </TableCell>
-                </TableRow>
-              ) : students.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center text-muted-foreground"
+      <ConfirmDialog
+        open={showDeleteDialog}
+        title={studentToDelete ? `Delete student ${studentToDelete.student_name}?` : "Delete student?"}
+        description="This action cannot be undone. The student and all related data will be permanently deleted."
+        onConfirm={confirmDelete}
+        onCancel={() => { setShowDeleteDialog(false); setStudentToDelete(null); }}
+      />
+      {/* Filter/search input always visible */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="Filter by name or matric number..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-xs"
+        />
+        {/* Add Student button for mobile */}
+        <div className="md:hidden ml-auto">
+          <Button onClick={openAddModal}>Add Student</Button>
+        </div>
+      </div>
+      {/* Card grid for mobile only (no outer Card) */}
+      <div className="md:hidden">
+        <div className="grid grid-cols-1 gap-3">
+          {isLoading ? (
+            <div className="col-span-full text-center py-8 text-muted-foreground">
+              Loading...
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="col-span-full text-center py-8 text-muted-foreground">
+              No students found
+            </div>
+          ) : (
+            filteredStudents.map((student) => (
+              <Card
+                key={student.id}
+                className="flex flex-col h-full border p-3 shadow-sm"
+              >
+                <CardHeader className="pb-2 px-0 pt-0">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="font-bold text-sm truncate max-w-[160px]"
+                      title={student.student_name}
+                    >
+                      Name: {student.student_name}
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col gap-2 px-0 pb-0">
+                  <div className="text-xs">
+                    <span className="font-semibold">Matric:</span>{" "}
+                    {student.matric_number}
+                  </div>
+                  <div className="text-xs">
+                    <span className="font-semibold">DOB:</span>{" "}
+                    {student.date_of_birth}
+                  </div>
+                  <div className="text-xs">
+                    <span className="font-semibold">Parent Email 1:</span>{" "}
+                    {student.parent_email_1 || "-"}
+                  </div>
+                  <div className="text-xs">
+                    <span className="font-semibold">Parent Email 2:</span>{" "}
+                    {student.parent_email_2 || "-"}
+                  </div>
+                </CardContent>
+                <div className="px-0 pb-0 flex flex-wrap gap-2 justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openEditModal(student)}
                   >
-                    No students found
-                  </TableCell>
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleDelete(student)}
+                  >
+                    Delete
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => openEmailModal(student)}
+                  >
+                    Send Email
+                  </Button>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+      </div>
+      {/* Table for md+ screens only, inside Card */}
+      <div className="hidden md:block">
+        <Card className="animate-fade-in">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 justify-between">
+              <span>Student List</span>
+              <Button onClick={openAddModal}>Add Student</Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Matric</TableHead>
+                  <TableHead>DOB</TableHead>
+                  <TableHead>Parent Email 1</TableHead>
+                  <TableHead>Parent Email 2</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ) : (
-                filteredStudents.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell>{student.student_name}</TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {student.matric_number}
-                    </TableCell>
-                    <TableCell>{student.date_of_birth}</TableCell>
-                    <TableCell>{student.parent_email_1 || "-"}</TableCell>
-                    <TableCell>{student.parent_email_2 || "-"}</TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEditModal(student)}
-                      >
-                        Edit
-                      </Button>{" "}
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(student)}
-                      >
-                        Delete
-                      </Button>{" "}
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => openEmailModal(student)}
-                      >
-                        Send Email
-                      </Button>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">
+                      Loading...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ) : students.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="text-center text-muted-foreground"
+                    >
+                      No students found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredStudents.map((student) => (
+                    <TableRow key={student.id}>
+                      <TableCell className="font-bold">
+                        {student.student_name}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {student.matric_number}
+                      </TableCell>
+                      <TableCell>{student.date_of_birth}</TableCell>
+                      <TableCell>{student.parent_email_1 || "-"}</TableCell>
+                      <TableCell>{student.parent_email_2 || "-"}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditModal(student)}
+                        >
+                          Edit
+                        </Button>{" "}
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDelete(student)}
+                        >
+                          Delete
+                        </Button>{" "}
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => openEmailModal(student)}
+                        >
+                          Send Email
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent>
           <DialogHeader>

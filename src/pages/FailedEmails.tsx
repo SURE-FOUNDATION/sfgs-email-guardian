@@ -3,6 +3,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -19,6 +20,7 @@ import { format } from "date-fns";
 export default function FailedEmails() {
   const [emails, setEmails] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState("");
   const { toast } = useToast();
 
   const fetch = async () => {
@@ -44,6 +46,14 @@ export default function FailedEmails() {
     fetch();
   };
 
+  const filteredEmails = emails.filter(
+    (email) =>
+      email.students?.student_name
+        ?.toLowerCase()
+        .includes(filter.toLowerCase()) ||
+      email.recipient_email?.toLowerCase().includes(filter.toLowerCase())
+  );
+
   return (
     <AdminLayout
       title="Failed Emails"
@@ -57,68 +67,108 @@ export default function FailedEmails() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>Recipient</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Sent At</TableHead>
-                <TableHead>Error</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center">
-                    Loading...
-                  </TableCell>
-                </TableRow>
-              ) : emails.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center text-muted-foreground"
+          <div className="mb-4 flex items-center gap-2">
+            <Input
+              placeholder="Filter by name or matric number..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="max-w-xs"
+            />
+          </div>
+          {/* Card grid for mobile, table for desktop */}
+          <div className="block md:hidden">
+            {isLoading ? (
+              <div className="text-center py-8">Loading...</div>
+            ) : filteredEmails.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                No failed emails
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {filteredEmails.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border bg-card p-3 flex flex-col gap-2 shadow-sm"
                   >
-                    No failed emails
-                  </TableCell>
-                </TableRow>
-              ) : (
-                emails.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <Badge className="bg-destructive text-white mr-2">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-destructive text-white">
                         Failed
                       </Badge>
-                      {item.students?.student_name || "-"}
-                    </TableCell>
-                    <TableCell>{item.recipient_email}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{item.email_type}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {item.sent_at
-                        ? format(new Date(item.sent_at), "PPpp")
-                        : "-"}
-                    </TableCell>
-                    <TableCell className="text-xs text-destructive">
-                      {item.error_message || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRetry(item.id)}
+                      <span
+                        className="font-bold text-sm truncate"
+                        title={item.students?.student_name || "-"}
                       >
-                        <RotateCcw className="h-4 w-4 mr-1" /> Retry
-                      </Button>
+                        {item.students?.student_name || "-"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground break-all">
+                      <span className="font-semibold">Recipient:</span>{" "}
+                      {item.recipient_email}
+                    </div>
+                    <div className="text-xs">
+                      <Badge variant="outline">{item.email_type}</Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-semibold">Failed At:</span>{" "}
+                      {item.failed_at
+                        ? format(new Date(item.failed_at), "PPpp")
+                        : "-"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="w-full overflow-x-auto hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Recipient</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Failed At</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center">
+                      Loading...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : filteredEmails.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="text-center text-muted-foreground"
+                    >
+                      No failed emails
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredEmails.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <Badge className="bg-destructive text-white mr-2">
+                          Failed
+                        </Badge>
+                        {item.students?.student_name || "-"}
+                      </TableCell>
+                      <TableCell>{item.recipient_email}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{item.email_type}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {item.failed_at
+                          ? format(new Date(item.failed_at), "PPpp")
+                          : "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </AdminLayout>

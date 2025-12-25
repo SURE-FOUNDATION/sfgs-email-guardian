@@ -64,52 +64,98 @@ export default function SentHistory() {
               className="max-w-xs"
             />
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>Recipient</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Sent At</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center">
-                    Loading...
-                  </TableCell>
-                </TableRow>
-              ) : filteredEmails.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="text-center text-muted-foreground"
+          {/* Card grid for mobile, table for desktop */}
+          <div className="block md:hidden">
+            {isLoading ? (
+              <div className="text-center py-8">Loading...</div>
+            ) : filteredEmails.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                No emails sent yet
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {filteredEmails.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border bg-card p-3 flex flex-col gap-2 shadow-sm"
                   >
-                    No emails sent yet
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredEmails.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <Badge className="bg-success text-white mr-2">Sent</Badge>
-                      {item.students?.student_name || "-"}
-                    </TableCell>
-                    <TableCell>{item.recipient_email}</TableCell>
-                    <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-success text-white">Sent</Badge>
+                      <span
+                        className="font-bold text-sm truncate"
+                        title={item.students?.student_name || "-"}
+                      >
+                        {item.students?.student_name || "-"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground break-all">
+                      <span className="font-semibold">Recipient:</span>{" "}
+                      {item.recipient_email}
+                    </div>
+                    <div className="text-xs">
                       <Badge variant="outline">{item.email_type}</Badge>
-                    </TableCell>
-                    <TableCell>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-semibold">Sent At:</span>{" "}
                       {item.sent_at
                         ? format(new Date(item.sent_at), "PPpp")
                         : "-"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="w-full overflow-x-auto hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Recipient</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Sent At</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center">
+                      Loading...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : filteredEmails.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="text-center text-muted-foreground"
+                    >
+                      No emails sent yet
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredEmails.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <Badge className="bg-success text-white mr-2">
+                          Sent
+                        </Badge>
+                        {item.students?.student_name || "-"}
+                      </TableCell>
+                      <TableCell>{item.recipient_email}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{item.email_type}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {item.sent_at
+                          ? format(new Date(item.sent_at), "PPpp")
+                          : "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </AdminLayout>

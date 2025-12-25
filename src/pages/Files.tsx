@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { FileText } from "lucide-react";
+import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -10,13 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { supabase } from "@/integrations/supabase/client";
-import { FileText } from "lucide-react";
-import { format } from "date-fns";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import ConfirmDialog from "@/components/ui/confirm-dialog";
-import { Input } from "@/components/ui/input";
 
 export default function Files() {
   const [files, setFiles] = useState<any[]>([]);
@@ -110,14 +110,14 @@ export default function Files() {
       title="Uploaded Files"
       description="View all uploaded PDF files"
     >
-      <Card className="animate-fade-in">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <Card className="animate-fade-in shadow-none border-none bg-transparent p-0">
+        <CardHeader className="px-2 pt-4 pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
             <FileText className="h-5 w-5" />
             All Uploaded Files
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-2 pt-0 pb-2">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <Input
               placeholder="Filter by name or matric number..."
@@ -133,44 +133,44 @@ export default function Files() {
               title="Filter by uploaded date"
             />
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>File Name</TableHead>
-                <TableHead>Parsed Matric</TableHead>
-                <TableHead>Student</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Uploaded</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center">
-                    Loading...
-                  </TableCell>
-                </TableRow>
-              ) : filteredFiles.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center text-muted-foreground"
-                  >
-                    No files uploaded yet
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredFiles.map((file) => (
-                  <TableRow key={file.id}>
-                    <TableCell className="font-mono text-sm">
-                      {file.original_file_name}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
+          {/* Card grid for mobile only */}
+          <div className="grid grid-cols-1 gap-4 md:hidden">
+            {isLoading ? (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                Loading...
+              </div>
+            ) : filteredFiles.length === 0 ? (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                No files uploaded yet
+              </div>
+            ) : (
+              filteredFiles.map((file) => (
+                <Card
+                  key={file.id}
+                  className="flex flex-col h-full border p-3 shadow-sm"
+                >
+                  <CardHeader className="pb-2 px-0 pt-0">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      <span
+                        className="font-mono text-xs truncate max-w-[160px] font-bold"
+                        title={file.original_file_name}
+                      >
+                        {file.original_file_name}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex flex-col gap-2 px-0 pb-0">
+                    <div className="text-xs">
+                      <span className="font-semibold">Matric:</span>{" "}
                       {file.matric_number_parsed}
-                    </TableCell>
-                    <TableCell>{file.students?.student_name || "-"}</TableCell>
-                    <TableCell>
+                    </div>
+                    <div className="text-xs">
+                      <span className="font-semibold">Student:</span>{" "}
+                      {file.students?.student_name || "-"}
+                    </div>
+                    <div className="text-xs">
+                      <span className="font-semibold">Status:</span>{" "}
                       <Badge
                         variant={
                           file.status === "matched" ? "default" : "secondary"
@@ -181,24 +181,98 @@ export default function Files() {
                       >
                         {file.status}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
+                    </div>
+                    <div className="text-xs">
+                      <span className="font-semibold">Uploaded:</span>{" "}
                       {format(new Date(file.uploaded_at), "PP")}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => requestDeleteFile(file)}
-                      >
-                        Delete
-                      </Button>
+                    </div>
+                  </CardContent>
+                  <div className="px-0 pb-0 flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => requestDeleteFile(file)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+          {/* Table for md+ screens only */}
+          <div className="w-full overflow-x-auto hidden md:block">
+            <Table className="min-w-[700px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="whitespace-nowrap">File Name</TableHead>
+                  <TableHead className="whitespace-nowrap">
+                    Parsed Matric
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap">Student</TableHead>
+                  <TableHead className="whitespace-nowrap">Status</TableHead>
+                  <TableHead className="whitespace-nowrap">Uploaded</TableHead>
+                  <TableHead className="whitespace-nowrap">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">
+                      Loading...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : filteredFiles.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="text-center text-muted-foreground"
+                    >
+                      No files uploaded yet
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredFiles.map((file) => (
+                    <TableRow key={file.id} className="break-words">
+                      <TableCell className="font-mono text-xs md:text-sm max-w-[120px] truncate whitespace-nowrap">
+                        {file.original_file_name}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs md:text-sm max-w-[100px] truncate whitespace-nowrap">
+                        {file.matric_number_parsed}
+                      </TableCell>
+                      <TableCell className="text-xs md:text-sm max-w-[120px] truncate whitespace-nowrap">
+                        {file.students?.student_name || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            file.status === "matched" ? "default" : "secondary"
+                          }
+                          className={
+                            file.status === "matched" ? "bg-success" : ""
+                          }
+                        >
+                          {file.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs md:text-sm whitespace-nowrap">
+                        {format(new Date(file.uploaded_at), "PP")}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => requestDeleteFile(file)}
+                        >
+                          Delete
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
       <ConfirmDialog
