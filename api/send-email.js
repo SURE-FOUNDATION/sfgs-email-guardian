@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import { sendBrevoEmail } from '../utils/sendBrevoEmail.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,26 +13,18 @@ export default async function handler(req, res) {
     return;
   }
 
-  const transporter = nodemailer.createTransport({
-    host: process.env.VITE_SMTP_HOST,
-    port: Number(process.env.VITE_SMTP_PORT),
-    secure: true,
-    auth: {
-      user: process.env.VITE_SMTP_USER,
-      pass: process.env.VITE_SMTP_PASS,
-    },
-  });
-
   try {
-    await transporter.sendMail({
-      from: `"${process.env.VITE_SMTP_FROM_NAME}" <${process.env.VITE_SMTP_USER}>`,
-      to,
+    await sendBrevoEmail({
+      toEmail: to,
+      toName: '',
       subject,
-      text,
-      html,
+      htmlContent: html || text.replace(/\n/g, '<br>'),
+      textContent: text || html.replace(/<[^>]+>/g, '')
     });
+
     res.status(200).json({ success: true });
   } catch (err) {
+    console.error('Failed to send email:', err);
     res.status(500).json({ error: err.message });
   }
 }

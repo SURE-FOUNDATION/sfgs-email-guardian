@@ -9,7 +9,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Settings as SettingsIcon, Save, Loader2 } from "lucide-react";
 
 export default function Settings() {
-  const [settings, setSettings] = useState({ daily_email_limit: 100, sender_email: "", email_interval_minutes: 5 });
+  const [settings, setSettings] = useState({ 
+    daily_email_limit: 100, 
+    sender_email: "", 
+    email_interval_minutes: 5,
+    email_batch_size: 10
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -28,6 +33,7 @@ export default function Settings() {
     const { error } = await supabase.from("system_settings").update({
       daily_email_limit: settings.daily_email_limit,
       email_interval_minutes: settings.email_interval_minutes,
+      email_batch_size: settings.email_batch_size,
     }).neq("id", "00000000-0000-0000-0000-000000000000");
     
     if (error) {
@@ -56,12 +62,34 @@ export default function Settings() {
             <Input value={settings.sender_email} disabled />
           </div>
           <div className="space-y-2">
-            <Label>Daily Email Limit</Label>
-            <Input type="number" value={settings.daily_email_limit} onChange={(e) => setSettings({ ...settings, daily_email_limit: parseInt(e.target.value) || 0 })} />
+            <Label htmlFor="daily_email_limit">Daily Email Limit</Label>
+            <Input 
+              id="daily_email_limit"
+              type="number" 
+              value={settings.daily_email_limit} 
+              onChange={(e) => setSettings({ ...settings, daily_email_limit: parseInt(e.target.value) || 0 })} 
+            />
+            <p className="text-sm text-muted-foreground">Maximum number of emails that can be sent per day</p>
           </div>
           <div className="space-y-2">
-            <Label>Email Interval (minutes)</Label>
-            <Input type="number" value={settings.email_interval_minutes} onChange={(e) => setSettings({ ...settings, email_interval_minutes: parseInt(e.target.value) || 1 })} />
+            <Label htmlFor="email_batch_size">Emails Per Cron Job (Batch Size)</Label>
+            <Input 
+              id="email_batch_size"
+              type="number" 
+              value={settings.email_batch_size} 
+              onChange={(e) => setSettings({ ...settings, email_batch_size: parseInt(e.target.value) || 1 })} 
+            />
+            <p className="text-sm text-muted-foreground">Number of emails to send each time the cron job runs</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email_interval_minutes">Email Interval (minutes)</Label>
+            <Input 
+              id="email_interval_minutes"
+              type="number" 
+              value={settings.email_interval_minutes} 
+              onChange={(e) => setSettings({ ...settings, email_interval_minutes: parseInt(e.target.value) || 1 })} 
+            />
+            <p className="text-sm text-muted-foreground">How often the cron job runs to check for pending emails</p>
           </div>
           <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
