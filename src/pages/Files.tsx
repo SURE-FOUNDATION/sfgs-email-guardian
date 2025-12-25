@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import { Input } from "@/components/ui/input";
 
 export default function Files() {
   const [files, setFiles] = useState<any[]>([]);
@@ -23,6 +24,8 @@ export default function Files() {
   const { toast } = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<any>(null);
+  const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
 
   async function fetchFiles() {
     const { data } = await supabase
@@ -36,6 +39,24 @@ export default function Files() {
   useEffect(() => {
     fetchFiles();
   }, []);
+
+  // Combined filter for name or matric number (order-insensitive for name, ignores spaces for matric)
+  const filteredFiles = files.filter((file) => {
+    const matric =
+      file.matric_number_parsed?.replace(/\s+/g, "").toLowerCase() || "";
+    const name = file.students?.student_name?.toLowerCase() || "";
+    const searchValue = search.toLowerCase();
+    const uploadedDate = file.uploaded_at
+      ? new Date(file.uploaded_at).toISOString().slice(0, 10)
+      : "";
+    if (dateFilter && uploadedDate !== dateFilter) return false;
+    if (!searchValue) return true;
+    // Matric: ignore spaces
+    if (matric.includes(searchValue.replace(/\s+/g, ""))) return true;
+    // Name: order-insensitive word match
+    const words = searchValue.split(/\s+/).filter(Boolean);
+    return words.every((word) => name.includes(word));
+  });
 
   async function handleDeleteFileConfirmed(file: any) {
     // Find emails in queue referencing this file (by attachments array containing the file's storage_path)
@@ -97,6 +118,21 @@ export default function Files() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <Input
+              placeholder="Filter by name or matric number..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-xs"
+            />
+            <Input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="max-w-xs"
+              title="Filter by uploaded date"
+            />
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -115,7 +151,7 @@ export default function Files() {
                     Loading...
                   </TableCell>
                 </TableRow>
-              ) : files.length === 0 ? (
+              ) : filteredFiles.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={6}
@@ -125,7 +161,7 @@ export default function Files() {
                   </TableCell>
                 </TableRow>
               ) : (
-                files.map((file) => (
+                filteredFiles.map((file) => (
                   <TableRow key={file.id}>
                     <TableCell className="font-mono text-sm">
                       {file.original_file_name}

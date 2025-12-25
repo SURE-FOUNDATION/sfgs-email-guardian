@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Mail, RotateCcw, X } from "lucide-react";
 import { format } from "date-fns";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import { Input } from "@/components/ui/input";
 
 export default function Queue() {
   const [queue, setQueue] = useState<any[]>([]);
@@ -23,6 +24,10 @@ export default function Queue() {
   const { toast } = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [emailToCancel, setEmailToCancel] = useState<any>(null);
+  const [cronEnabled, setCronEnabled] = useState<boolean | null>(null);
+  const [cronLoading, setCronLoading] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
 
   const fetchQueue = async () => {
     const { data } = await supabase
@@ -34,8 +39,19 @@ export default function Queue() {
     setIsLoading(false);
   };
 
+  // Fetch cron_enabled status
+  const fetchCronEnabled = async () => {
+    const { data } = await supabase
+      .from("system_settings")
+      .select("cron_enabled")
+      .order("updated_at", { ascending: false })
+      .limit(1);
+    setCronEnabled(data && data.length > 0 ? data[0].cron_enabled : null);
+  };
+
   useEffect(() => {
     fetchQueue();
+    fetchCronEnabled();
   }, []);
 
   const handleRetry = async (id: string) => {
@@ -64,6 +80,33 @@ export default function Queue() {
     fetchQueue();
   };
 
+  const handleToggleCron = async () => {
+    setCronLoading(true);
+    // Get the latest settings row
+    const { data: settingsRows, error: fetchError } = await supabase
+      .from("system_settings")
+      .select("id, cron_enabled")
+      .order("updated_at", { ascending: false })
+      .limit(1);
+    const latestId =
+      settingsRows && settingsRows.length > 0 ? settingsRows[0].id : null;
+    if (!latestId) {
+      toast({ title: "No settings row found" });
+      setCronLoading(false);
+      return;
+    }
+    // Update by primary key
+    const { error } = await supabase
+      .from("system_settings")
+      .update({ cron_enabled: !cronEnabled })
+      .eq("id", latestId);
+    if (!error) {
+      setCronEnabled((prev) => !prev);
+      toast({ title: `Email sending ${cronEnabled ? "stopped" : "started"}` });
+    }
+    setCronLoading(false);
+  };
+
   function requestCancelEmail(email: any) {
     setEmailToCancel(email);
     setConfirmOpen(true);
@@ -76,9 +119,30 @@ export default function Queue() {
     failed: "bg-destructive",
   };
 
-  // Split queue into prioritized and normal
-  const prioritized = queue.filter((item) => item.prioritized_at);
-  const normal = queue.filter((item) => !item.prioritized_at);
+  // Only show pending emails in the queue
+  const pendingQueue = queue.filter((item) => item.status === "pending");
+  // Split queue into prioritized and normal (pending only)
+  const prioritized = pendingQueue.filter((item) => item.prioritized_at);
+  const normal = pendingQueue.filter((item) => !item.prioritized_at);
+
+  // Filter queue by student name or matric number (order-insensitive) and type
+  const filterWords = filter.toLowerCase().split(/\s+/).filter(Boolean);
+  const filteredPrioritized = prioritized.filter((item) => {
+    const name = item.students?.student_name?.toLowerCase() || "";
+    const matric = item.matric_number?.toLowerCase() || "";
+    if (typeFilter && item.email_type !== typeFilter) return false;
+    if (!filterWords.length) return true;
+    if (matric.includes(filter.toLowerCase())) return true;
+    return filterWords.every((word) => name.includes(word));
+  });
+  const filteredNormal = normal.filter((item) => {
+    const name = item.students?.student_name?.toLowerCase() || "";
+    const matric = item.matric_number?.toLowerCase() || "";
+    if (typeFilter && item.email_type !== typeFilter) return false;
+    if (!filterWords.length) return true;
+    if (matric.includes(filter.toLowerCase())) return true;
+    return filterWords.every((word) => name.includes(word));
+  });
 
   return (
     <AdminLayout
@@ -90,11 +154,45 @@ export default function Queue() {
           <CardTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
             Email Queue
+            <Button
+              size="sm"
+              className={
+                cronEnabled
+                  ? "ml-4 bg-red-600 hover:bg-red-700"
+                  : "ml-4 bg-green-600 hover:bg-green-700"
+              }
+              onClick={handleToggleCron}
+              disabled={cronLoading}
+            >
+              {cronEnabled ? "Stop" : "Start"}
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex items-center gap-2">
+            <Input
+              placeholder="Filter by name or matric number..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="max-w-xs"
+            />
+            <label htmlFor="typeFilter" className="sr-only">
+              Type
+            </label>
+            <select
+              id="typeFilter"
+              title="Type"
+              className="border rounded px-2 py-1 text-sm"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="">All Types</option>
+              <option value="pdf">PDF</option>
+              <option value="birthday">Birthday</option>
+            </select>
+          </div>
           {/* Prioritized Emails Table */}
-          {prioritized.length > 0 && (
+          {filteredPrioritized.length > 0 && (
             <div className="mb-8 border-2 border-yellow-400 rounded-lg">
               <div className="bg-yellow-100 px-4 py-2 rounded-t-lg font-semibold text-yellow-800">
                 Prioritized Emails
@@ -112,7 +210,7 @@ export default function Queue() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {prioritized.map((item) => (
+                  {filteredPrioritized.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>
                         {item.students?.student_name || "-"}
@@ -200,7 +298,7 @@ export default function Queue() {
                     Loading...
                   </TableCell>
                 </TableRow>
-              ) : normal.length === 0 ? (
+              ) : filteredNormal.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={7}
@@ -210,7 +308,7 @@ export default function Queue() {
                   </TableCell>
                 </TableRow>
               ) : (
-                normal.map((item) => (
+                filteredNormal.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>{item.students?.student_name || "-"}</TableCell>
                     <TableCell className="font-mono text-sm">

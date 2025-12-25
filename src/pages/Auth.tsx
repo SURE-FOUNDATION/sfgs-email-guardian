@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,14 +23,15 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
 
   // Use effect to navigate after login to avoid render loop
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && location.pathname === "/auth") {
       navigate("/dashboard", { replace: true });
     }
-  }, [authLoading, user, navigate]);
+  }, [authLoading, user, navigate, location.pathname]);
 
   if (authLoading) {
     return (

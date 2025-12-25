@@ -17,10 +17,20 @@ export default async function handler(req, res) {
   // Get email settings - get the FIRST row ordered by updated_at (most recent)
   const { data: settingsArray, error: settingsError } = await supabase
     .from('system_settings')
-    .select('id, daily_email_limit, email_batch_size, email_interval_minutes, updated_at')
+    .select('id, daily_email_limit, email_batch_size, email_interval_minutes, updated_at, cron_enabled')
     .order('updated_at', { ascending: false });
 
   const settings = settingsArray?.[0] || null;
+
+  // Check if cron is enabled in settings
+  if (settings && settings.cron_enabled === false) {
+    await supabase.from('cron_log').insert({
+      status: 'cron_disabled',
+      message: 'Cron job is currently disabled by admin.'
+    });
+    res.status(200).json({ success: false, message: 'Cron job is disabled by admin.' });
+    return;
+  }
 
   // Get daily email limit, batch size, and interval from settings
   const dailyLimit = settings?.daily_email_limit || 100;
@@ -80,13 +90,28 @@ export default async function handler(req, res) {
   const batchSize = Math.min(maxBatchSize, remainingToday);
 
   // Get batch of pending emails to send
-  const { data: pendingEmails } = await supabase
+  // Always prioritize emails with prioritized_at set (not null), then FIFO for the rest
+  const { data: prioritizedEmails } = await supabase
     .from('email_queue')
     .select('*, students:student_id(student_name)')
     .eq('status', 'pending')
-    .order('prioritized_at', { ascending: false, nullsLast: true })
-    .order('queued_at', { ascending: true })
+    .not('prioritized_at', 'is', null)
+    .order('prioritized_at', { ascending: true }) // oldest prioritized first
     .limit(batchSize);
+
+  let remaining = batchSize - (prioritizedEmails?.length || 0);
+  let normalEmails = [];
+  if (remaining > 0) {
+    const { data: normalBatch } = await supabase
+      .from('email_queue')
+      .select('*, students:student_id(student_name)')
+      .eq('status', 'pending')
+      .is('prioritized_at', null)
+      .order('queued_at', { ascending: true })
+      .limit(remaining);
+    normalEmails = normalBatch || [];
+  }
+  const pendingEmails = [...(prioritizedEmails || []), ...normalEmails];
 
   if (!pendingEmails || pendingEmails.length === 0) {
     await supabase.from('cron_log').insert({

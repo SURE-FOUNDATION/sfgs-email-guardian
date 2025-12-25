@@ -3,7 +3,14 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { XCircle, RotateCcw } from "lucide-react";
@@ -24,16 +31,24 @@ export default function FailedEmails() {
     setIsLoading(false);
   };
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => {
+    fetch();
+  }, []);
 
   const handleRetry = async (id: string) => {
-    await supabase.from("email_queue").update({ status: "pending", error_message: null }).eq("id", id);
+    await supabase
+      .from("email_queue")
+      .update({ status: "pending", error_message: null })
+      .eq("id", id);
     toast({ title: "Email re-queued for retry" });
     fetch();
   };
 
   return (
-    <AdminLayout title="Failed Emails" description="View and retry failed email deliveries">
+    <AdminLayout
+      title="Failed Emails"
+      description="View and retry failed email deliveries"
+    >
       <Card className="animate-fade-in">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -48,28 +63,60 @@ export default function FailedEmails() {
                 <TableHead>Student</TableHead>
                 <TableHead>Recipient</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Sent At</TableHead>
                 <TableHead>Error</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={5} className="text-center">Loading...</TableCell></TableRow>
-              ) : emails.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No failed emails</TableCell></TableRow>
-              ) : emails.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.students?.student_name || "-"}</TableCell>
-                  <TableCell>{item.recipient_email}</TableCell>
-                  <TableCell><Badge variant="outline">{item.email_type}</Badge></TableCell>
-                  <TableCell className="text-sm text-destructive max-w-xs truncate">{item.error_message || "-"}</TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="outline" onClick={() => handleRetry(item.id)}>
-                      <RotateCcw className="h-4 w-4 mr-1" /> Retry
-                    </Button>
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">
+                    Loading...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : emails.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="text-center text-muted-foreground"
+                  >
+                    No failed emails
+                  </TableCell>
+                </TableRow>
+              ) : (
+                emails.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <Badge className="bg-destructive text-white mr-2">
+                        Failed
+                      </Badge>
+                      {item.students?.student_name || "-"}
+                    </TableCell>
+                    <TableCell>{item.recipient_email}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{item.email_type}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {item.sent_at
+                        ? format(new Date(item.sent_at), "PPpp")
+                        : "-"}
+                    </TableCell>
+                    <TableCell className="text-xs text-destructive">
+                      {item.error_message || "-"}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRetry(item.id)}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" /> Retry
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

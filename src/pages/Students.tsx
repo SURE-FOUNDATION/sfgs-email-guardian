@@ -49,6 +49,7 @@ export default function Students() {
   const [emailingStudent, setEmailingStudent] = useState<Student | null>(null);
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
+  const [search, setSearch] = useState("");
 
   const fetchStudents = async () => {
     setIsLoading(true);
@@ -256,6 +257,19 @@ export default function Students() {
     setIsSending(false);
   };
 
+  // Combined filter for name or matric number (order-insensitive for name, ignores spaces for matric)
+  const filteredStudents = students.filter((student) => {
+    const name = student.student_name.toLowerCase();
+    const matric = student.matric_number.replace(/\s+/g, "").toLowerCase();
+    const searchValue = search.toLowerCase();
+    if (!searchValue) return true;
+    // Matric: ignore spaces
+    if (matric.includes(searchValue.replace(/\s+/g, ""))) return true;
+    // Name: order-insensitive word match
+    const words = searchValue.split(/\s+/).filter(Boolean);
+    return words.every((word) => name.includes(word));
+  });
+
   return (
     <AdminLayout title="Students" description="Manage student records">
       <Card className="animate-fade-in">
@@ -266,6 +280,14 @@ export default function Students() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex items-center gap-2">
+            <Input
+              placeholder="Filter by name or matric number..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-xs"
+            />
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -294,7 +316,7 @@ export default function Students() {
                   </TableCell>
                 </TableRow>
               ) : (
-                students.map((student) => (
+                filteredStudents.map((student) => (
                   <TableRow key={student.id}>
                     <TableCell>{student.student_name}</TableCell>
                     <TableCell className="font-mono text-sm">
