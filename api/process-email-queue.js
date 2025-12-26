@@ -22,16 +22,6 @@ export default async function handler(req, res) {
 
   const settings = settingsArray?.[0] || null;
 
-  // Check if cron is enabled in settings
-  if (settings && settings.cron_enabled === false) {
-    await supabase.from('cron_log').insert({
-      status: 'cron_disabled',
-      message: 'Cron job is currently disabled by admin.'
-    });
-    res.status(200).json({ success: false, message: 'Cron job is disabled by admin.' });
-    return;
-  }
-
   // Get daily email limit, batch size, and interval from settings
   const dailyLimit = settings?.daily_email_limit || 100;
   const maxBatchSize = settings?.email_batch_size || 10;
@@ -111,7 +101,24 @@ export default async function handler(req, res) {
       .limit(remaining);
     normalEmails = normalBatch || [];
   }
-  const pendingEmails = [...(prioritizedEmails || []), ...normalEmails];
+  let pendingEmails = [...(prioritizedEmails || []), ...normalEmails];
+
+  // Separate birthday and non-birthday emails
+  const birthdayEmails = pendingEmails.filter(e => e.email_type === 'birthday');
+  let nonBirthdayEmails = pendingEmails.filter(e => e.email_type !== 'birthday');
+
+  // If cron is disabled, skip non-birthday emails
+  if (settings && settings.cron_enabled === false) {
+    if (nonBirthdayEmails.length > 0) {
+      await supabase.from('cron_log').insert({
+        status: 'cron_disabled',
+        message: 'Cron job is currently disabled by admin. Only birthday emails will be sent.'
+      });
+    }
+    nonBirthdayEmails = [];
+  }
+
+  pendingEmails = [...birthdayEmails, ...nonBirthdayEmails];
 
   if (!pendingEmails || pendingEmails.length === 0) {
     await supabase.from('cron_log').insert({
