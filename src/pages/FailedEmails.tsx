@@ -17,16 +17,28 @@ import { useToast } from "@/hooks/use-toast";
 import { XCircle, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 
+const CLASS_OPTIONS = [
+  "JSS1",
+  "JSS2",
+  "JSS3",
+  "SSS1",
+  "SSS2A",
+  "SSS2B",
+  "SSS3A",
+  "SSS3B",
+];
+
 export default function FailedEmails() {
   const [emails, setEmails] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState("");
+  const [classFilter, setClassFilter] = useState("");
   const { toast } = useToast();
 
   const fetch = async () => {
     const { data } = await supabase
       .from("email_queue")
-      .select("*, students(student_name)")
+      .select("*, students(student_name, class)")
       .eq("status", "failed")
       .order("created_at", { ascending: false });
     setEmails(data || []);
@@ -46,13 +58,15 @@ export default function FailedEmails() {
     fetch();
   };
 
-  const filteredEmails = emails.filter(
-    (email) =>
-      email.students?.student_name
+  const filteredEmails = emails.filter((item) => {
+    if (classFilter && item.students?.class !== classFilter) return false;
+    return (
+      item.students?.student_name
         ?.toLowerCase()
         .includes(filter.toLowerCase()) ||
-      email.recipient_email?.toLowerCase().includes(filter.toLowerCase())
-  );
+      item.recipient_email?.toLowerCase().includes(filter.toLowerCase())
+    );
+  });
 
   return (
     <AdminLayout
@@ -74,6 +88,19 @@ export default function FailedEmails() {
               onChange={(e) => setFilter(e.target.value)}
               className="max-w-xs"
             />
+            <select
+              className="border rounded px-2 py-1 text-sm"
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              title="Filter by class"
+            >
+              <option value="">All Classes</option>
+              {CLASS_OPTIONS.map((cls) => (
+                <option key={cls} value={cls}>
+                  {cls}
+                </option>
+              ))}
+            </select>
           </div>
           {/* Card grid for mobile, table for desktop */}
           <div className="block md:hidden">
@@ -108,6 +135,10 @@ export default function FailedEmails() {
                     <div className="text-xs">
                       <Badge variant="outline">{item.email_type}</Badge>
                     </div>
+                    <div className="text-xs">
+                      <span className="font-semibold">Class:</span>{" "}
+                      {item.students?.class || "-"}
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       <span className="font-semibold">Failed At:</span>{" "}
                       {item.failed_at
@@ -126,20 +157,21 @@ export default function FailedEmails() {
                   <TableHead>Student</TableHead>
                   <TableHead>Recipient</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Class</TableHead>
                   <TableHead>Failed At</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center">
+                    <TableCell colSpan={5} className="text-center">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredEmails.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={4}
+                      colSpan={5}
                       className="text-center text-muted-foreground"
                     >
                       No failed emails
@@ -158,6 +190,7 @@ export default function FailedEmails() {
                       <TableCell>
                         <Badge variant="outline">{item.email_type}</Badge>
                       </TableCell>
+                      <TableCell>{item.students?.class || "-"}</TableCell>
                       <TableCell>
                         {item.failed_at
                           ? format(new Date(item.failed_at), "PPpp")

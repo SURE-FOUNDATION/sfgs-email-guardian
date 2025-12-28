@@ -18,6 +18,17 @@ import { format } from "date-fns";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 
+const CLASS_OPTIONS = [
+  "JSS1",
+  "JSS2",
+  "JSS3",
+  "SSS1",
+  "SSS2A",
+  "SSS2B",
+  "SSS3A",
+  "SSS3B",
+];
+
 export default function Queue() {
   const [queue, setQueue] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,11 +39,12 @@ export default function Queue() {
   const [cronLoading, setCronLoading] = useState(false);
   const [filter, setFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [classFilter, setClassFilter] = useState("");
 
   const fetchQueue = async () => {
     const { data } = await supabase
       .from("email_queue")
-      .select("*, students(student_name)")
+      .select("*, students(student_name, class)")
       .order("prioritized_at", { ascending: false, nullsFirst: true })
       .order("created_at", { ascending: false });
     setQueue(data || []);
@@ -125,12 +137,13 @@ export default function Queue() {
   const prioritized = pendingQueue.filter((item) => item.prioritized_at);
   const normal = pendingQueue.filter((item) => !item.prioritized_at);
 
-  // Filter queue by student name or student ID (order-insensitive) and type
+  // Filter queue by student name or student ID (order-insensitive), type, and class
   const filterWords = filter.toLowerCase().split(/\s+/).filter(Boolean);
   const filteredPrioritized = prioritized.filter((item) => {
     const name = item.students?.student_name?.toLowerCase() || "";
     const matric = item.matric_number?.toLowerCase() || "";
     if (typeFilter && item.email_type !== typeFilter) return false;
+    if (classFilter && item.students?.class !== classFilter) return false;
     if (!filterWords.length) return true;
     if (matric.includes(filter.toLowerCase())) return true;
     return filterWords.every((word) => name.includes(word));
@@ -139,6 +152,7 @@ export default function Queue() {
     const name = item.students?.student_name?.toLowerCase() || "";
     const matric = item.matric_number?.toLowerCase() || "";
     if (typeFilter && item.email_type !== typeFilter) return false;
+    if (classFilter && item.students?.class !== classFilter) return false;
     if (!filterWords.length) return true;
     if (matric.includes(filter.toLowerCase())) return true;
     return filterWords.every((word) => name.includes(word));
@@ -170,6 +184,19 @@ export default function Queue() {
           <option value="">All Types</option>
           <option value="pdf">PDF</option>
           <option value="birthday">Birthday</option>
+        </select>
+        <select
+          className="border rounded px-2 py-1 text-sm"
+          value={classFilter}
+          onChange={(e) => setClassFilter(e.target.value)}
+          title="Filter by class"
+        >
+          <option value="">All Classes</option>
+          {CLASS_OPTIONS.map((cls) => (
+            <option key={cls} value={cls}>
+              {cls}
+            </option>
+          ))}
         </select>
         {/* Removed duplicate Start/Stop button for md+ screens */}
       </div>
@@ -245,6 +272,10 @@ export default function Queue() {
                   <div className="text-xs">
                     <span className="font-semibold">Created:</span>{" "}
                     {format(new Date(item.created_at), "PP")}
+                  </div>
+                  <div className="text-xs">
+                    <span className="font-semibold">Class:</span>{" "}
+                    {item.students?.class || "-"}
                   </div>
                 </CardContent>
                 <div className="px-0 pb-0 flex flex-wrap gap-2 justify-end">
@@ -323,6 +354,7 @@ export default function Queue() {
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Created</TableHead>
+                      <TableHead>Class</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -349,6 +381,7 @@ export default function Queue() {
                         <TableCell>
                           {format(new Date(item.created_at), "PP")}
                         </TableCell>
+                        <TableCell>{item.students?.class || "-"}</TableCell>
                         <TableCell>
                           {item.status === "failed" && (
                             <Button
@@ -408,20 +441,21 @@ export default function Queue() {
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
+                  <TableHead>Class</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center">
+                    <TableCell colSpan={8} className="text-center">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredNormal.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-center text-muted-foreground"
                     >
                       No emails in queue
@@ -450,6 +484,7 @@ export default function Queue() {
                       <TableCell>
                         {format(new Date(item.created_at), "PP")}
                       </TableCell>
+                      <TableCell>{item.students?.class || "-"}</TableCell>
                       <TableCell>
                         {item.status === "failed" && (
                           <Button

@@ -26,11 +26,12 @@ export default function Files() {
   const [fileToDelete, setFileToDelete] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [classFilter, setClassFilter] = useState("");
 
   async function fetchFiles() {
     const { data } = await supabase
       .from("uploaded_files")
-      .select("*, students(student_name)")
+      .select("*, students(student_name, class)")
       .order("uploaded_at", { ascending: false });
     setFiles(data || []);
     setIsLoading(false);
@@ -45,11 +46,13 @@ export default function Files() {
     const matric =
       file.matric_number_parsed?.replace(/\s+/g, "").toLowerCase() || "";
     const name = file.students?.student_name?.toLowerCase() || "";
+    const classValue = file.students?.class || "";
     const searchValue = search.toLowerCase();
     const uploadedDate = file.uploaded_at
       ? new Date(file.uploaded_at).toISOString().slice(0, 10)
       : "";
     if (dateFilter && uploadedDate !== dateFilter) return false;
+    if (classFilter && classValue !== classFilter) return false;
     if (!searchValue) return true;
     // Matric: ignore spaces
     if (matric.includes(searchValue.replace(/\s+/g, ""))) return true;
@@ -132,6 +135,19 @@ export default function Files() {
               className="max-w-xs"
               title="Filter by uploaded date"
             />
+            <select
+              className="border rounded px-2 py-1 text-sm"
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              title="Filter by class"
+            >
+              <option value="">All Classes</option>
+              {CLASS_OPTIONS.map((cls) => (
+                <option key={cls} value={cls}>
+                  {cls}
+                </option>
+              ))}
+            </select>
           </div>
           {/* Card grid for mobile only */}
           <div className="grid grid-cols-1 gap-4 md:hidden">
@@ -170,6 +186,10 @@ export default function Files() {
                       {file.students?.student_name || "-"}
                     </div>
                     <div className="text-xs">
+                      <span className="font-semibold">Class:</span>{" "}
+                      {file.students?.class || "-"}
+                    </div>
+                    <div className="text-xs">
                       <span className="font-semibold">Status:</span>{" "}
                       <Badge
                         variant={
@@ -202,7 +222,7 @@ export default function Files() {
           </div>
           {/* Table for md+ screens only */}
           <div className="w-full overflow-x-auto hidden md:block">
-            <Table className="min-w-[700px]">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="whitespace-nowrap">File Name</TableHead>
@@ -210,6 +230,7 @@ export default function Files() {
                     Student ID
                   </TableHead>
                   <TableHead className="whitespace-nowrap">Student</TableHead>
+                  <TableHead className="whitespace-nowrap">Class</TableHead>
                   <TableHead className="whitespace-nowrap">Status</TableHead>
                   <TableHead className="whitespace-nowrap">Uploaded</TableHead>
                   <TableHead className="whitespace-nowrap">Actions</TableHead>
@@ -218,14 +239,14 @@ export default function Files() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center">
+                    <TableCell colSpan={7} className="text-center">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredFiles.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="text-center text-muted-foreground"
                     >
                       No files uploaded yet
@@ -242,6 +263,9 @@ export default function Files() {
                       </TableCell>
                       <TableCell className="text-xs md:text-sm max-w-[120px] truncate whitespace-nowrap">
                         {file.students?.student_name || "-"}
+                      </TableCell>
+                      <TableCell className="text-xs md:text-sm max-w-[100px] truncate whitespace-nowrap">
+                        {file.students?.class || "-"}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -296,3 +320,14 @@ export default function Files() {
     </AdminLayout>
   );
 }
+
+const CLASS_OPTIONS = [
+  "JSS1",
+  "JSS2",
+  "JSS3",
+  "SSS1",
+  "SSS2A",
+  "SSS2B",
+  "SSS3A",
+  "SSS3B",
+];

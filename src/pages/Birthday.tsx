@@ -10,6 +10,7 @@ interface Student {
   student_name: string;
   matric_number: string;
   date_of_birth: string;
+  class: string;
 }
 
 type BirthdayCategory = "today" | "past" | "upcoming" | "all";
@@ -51,21 +52,35 @@ const categoryColors: Record<BirthdayCategory, string> = {
   all: "bg-yellow-500",
 };
 
+const CLASS_OPTIONS = [
+  "JSS1",
+  "JSS2",
+  "JSS3",
+  "SSS1",
+  "SSS2A",
+  "SSS2B",
+  "SSS3A",
+  "SSS3B",
+];
+
 export default function BirthdayPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
   const [birthdayFilter, setBirthdayFilter] =
     useState<BirthdayCategory>("today");
+  const [classFilter, setClassFilter] = useState("");
 
   useEffect(() => {
     async function fetchStudents() {
       setLoading(true);
       const { data, error } = await supabase
         .from("students")
-        .select("id, student_name, matric_number, date_of_birth");
+        .select("id, student_name, matric_number, date_of_birth, class");
       if (!error && data) {
-        setStudents(data);
+        setStudents(
+          (data || []).map((s: any) => ({ ...s, class: s.class || "" }))
+        );
       }
       setLoading(false);
     }
@@ -76,6 +91,7 @@ export default function BirthdayPage() {
   const filterWords = filter.toLowerCase().split(/\s+/).filter(Boolean);
   const filtered = students
     .filter((student) => {
+      if (classFilter && student.class !== classFilter) return false;
       const name = student.student_name.toLowerCase();
       const matric = student.matric_number.toLowerCase();
       if (!filterWords.length) return true;
@@ -92,13 +108,26 @@ export default function BirthdayPage() {
       title="Student Birthdays"
       description="View all student birthdays by category."
     >
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <Input
           placeholder="Filter by name or Student ID..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           className="max-w-xs"
         />
+        <select
+          className="border rounded px-2 py-1 text-sm"
+          value={classFilter}
+          onChange={(e) => setClassFilter(e.target.value)}
+          title="Filter by class"
+        >
+          <option value="">All Classes</option>
+          {CLASS_OPTIONS.map((cls) => (
+            <option key={cls} value={cls}>
+              {cls}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="mb-6 flex gap-2">
         {(["today", "past", "upcoming", "all"] as BirthdayCategory[]).map(
@@ -146,6 +175,10 @@ export default function BirthdayPage() {
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Student ID: {student.matric_number}
+                    </div>
+                    <div className="text-xs">
+                      <span className="font-semibold">Class:</span>{" "}
+                      {student.class || "-"}
                     </div>
                   </div>
                   <div className="text-sm text-gray-500">

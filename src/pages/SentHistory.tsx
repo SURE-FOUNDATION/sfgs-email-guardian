@@ -15,16 +15,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 
+const CLASS_OPTIONS = [
+  "JSS1",
+  "JSS2",
+  "JSS3",
+  "SSS1",
+  "SSS2A",
+  "SSS2B",
+  "SSS3A",
+  "SSS3B",
+];
+
 export default function SentHistory() {
   const [emails, setEmails] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState("");
+  const [classFilter, setClassFilter] = useState("");
 
   useEffect(() => {
     async function fetch() {
       const { data } = await supabase
         .from("email_queue")
-        .select("*, students(student_name)")
+        .select("*, students(student_name, class)")
         .eq("status", "sent")
         .order("sent_at", { ascending: false });
       setEmails(data || []);
@@ -36,6 +48,7 @@ export default function SentHistory() {
   // Filter emails by student name or matric number (order-insensitive)
   const filterWords = filter.toLowerCase().split(/\s+/).filter(Boolean);
   const filteredEmails = emails.filter((item) => {
+    if (classFilter && item.students?.class !== classFilter) return false;
     const name = item.students?.student_name?.toLowerCase() || "";
     const matric = item.matric_number?.toLowerCase() || "";
     if (!filterWords.length) return true;
@@ -63,6 +76,19 @@ export default function SentHistory() {
               onChange={(e) => setFilter(e.target.value)}
               className="max-w-xs"
             />
+            <select
+              className="border rounded px-2 py-1 text-sm"
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              title="Filter by class"
+            >
+              <option value="">All Classes</option>
+              {CLASS_OPTIONS.map((cls) => (
+                <option key={cls} value={cls}>
+                  {cls}
+                </option>
+              ))}
+            </select>
           </div>
           {/* Card grid for mobile, table for desktop */}
           <div className="block md:hidden">
@@ -101,6 +127,10 @@ export default function SentHistory() {
                         ? format(new Date(item.sent_at), "PPpp")
                         : "-"}
                     </div>
+                    <div className="text-xs">
+                      <span className="font-semibold">Class:</span>{" "}
+                      {item.students?.class || "-"}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -114,19 +144,20 @@ export default function SentHistory() {
                   <TableHead>Recipient</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Sent At</TableHead>
+                  <TableHead>Class</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center">
+                    <TableCell colSpan={5} className="text-center">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredEmails.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={4}
+                      colSpan={5}
                       className="text-center text-muted-foreground"
                     >
                       No emails sent yet
@@ -150,6 +181,7 @@ export default function SentHistory() {
                           ? format(new Date(item.sent_at), "PPpp")
                           : "-"}
                       </TableCell>
+                      <TableCell>{item.students?.class || "-"}</TableCell>
                     </TableRow>
                   ))
                 )}

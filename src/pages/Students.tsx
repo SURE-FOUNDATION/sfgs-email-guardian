@@ -31,7 +31,19 @@ interface Student {
   date_of_birth: string;
   parent_email_1: string | null;
   parent_email_2: string | null;
+  class: string; // Add class field
 }
+
+const CLASS_OPTIONS = [
+  "JSS1",
+  "JSS2",
+  "JSS3",
+  "SSS1",
+  "SSS2A",
+  "SSS2B",
+  "SSS3A",
+  "SSS3B",
+];
 
 export default function Students() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -53,6 +65,7 @@ export default function Students() {
   const [search, setSearch] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+  const [classFilter, setClassFilter] = useState("");
 
   const fetchStudents = async () => {
     setIsLoading(true);
@@ -60,7 +73,8 @@ export default function Students() {
       .from("students")
       .select("*")
       .order("created_at", { ascending: false });
-    setStudents(data || []);
+    // Ensure class is always present
+    setStudents((data || []).map((s: any) => ({ ...s, class: s.class || "" })));
     setIsLoading(false);
   };
 
@@ -91,7 +105,12 @@ export default function Students() {
   };
 
   const handleSave = async () => {
-    if (!form.student_name || !form.matric_number || !form.date_of_birth) {
+    if (
+      !form.student_name ||
+      !form.matric_number ||
+      !form.date_of_birth ||
+      !form.class
+    ) {
       toast({
         title: "Please fill all required fields",
         variant: "destructive",
@@ -120,6 +139,7 @@ export default function Students() {
         date_of_birth: form.date_of_birth!,
         parent_email_1: form.parent_email_1 || null,
         parent_email_2: form.parent_email_2 || null,
+        class: form.class!,
       });
       if (error) {
         toast({ title: "Failed to add student", variant: "destructive" });
@@ -267,11 +287,12 @@ export default function Students() {
     setIsSending(false);
   };
 
-  // Combined filter for name or student ID (order-insensitive for name, ignores spaces for student ID)
+  // Combined filter for name, student ID, and class
   const filteredStudents = students.filter((student) => {
     const name = student.student_name.toLowerCase();
     const studentId = student.matric_number.replace(/\s+/g, "").toLowerCase();
     const searchValue = search.toLowerCase();
+    if (classFilter && student.class !== classFilter) return false;
     if (!searchValue) return true;
     // Student ID: ignore spaces
     if (studentId.includes(searchValue.replace(/\s+/g, ""))) return true;
@@ -304,6 +325,19 @@ export default function Students() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
+        <select
+          className="border rounded px-2 py-1 text-sm"
+          value={classFilter}
+          onChange={(e) => setClassFilter(e.target.value)}
+          title="Filter by class"
+        >
+          <option value="">All Classes</option>
+          {CLASS_OPTIONS.map((cls) => (
+            <option key={cls} value={cls}>
+              {cls}
+            </option>
+          ))}
+        </select>
         {/* Add Student button for mobile */}
         <div className="md:hidden ml-auto">
           <Button onClick={openAddModal}>Add Student</Button>
@@ -353,6 +387,10 @@ export default function Students() {
                     <span className="font-semibold">Parent Email 2:</span>{" "}
                     {student.parent_email_2 || "-"}
                   </div>
+                  <div className="text-xs">
+                    <span className="font-semibold">Class:</span>{" "}
+                    {student.class || "-"}
+                  </div>
                 </CardContent>
                 <div className="px-0 pb-0 flex flex-wrap gap-2 justify-end">
                   <Button
@@ -400,20 +438,21 @@ export default function Students() {
                   <TableHead>DOB</TableHead>
                   <TableHead>Parent Email 1</TableHead>
                   <TableHead>Parent Email 2</TableHead>
+                  <TableHead>Class</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center">
+                    <TableCell colSpan={7} className="text-center">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : students.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="text-center text-muted-foreground"
                     >
                       No students found
@@ -431,6 +470,7 @@ export default function Students() {
                       <TableCell>{student.date_of_birth}</TableCell>
                       <TableCell>{student.parent_email_1 || "-"}</TableCell>
                       <TableCell>{student.parent_email_2 || "-"}</TableCell>
+                      <TableCell>{student.class || "-"}</TableCell>
                       <TableCell>
                         <Button
                           size="sm"
@@ -513,6 +553,24 @@ export default function Students() {
                 value={form.parent_email_2 || ""}
                 onChange={handleChange}
               />
+            </div>
+            <div>
+              <Label>Class</Label>
+              <select
+                name="class"
+                value={form.class || ""}
+                onChange={(e) => setForm({ ...form, class: e.target.value })}
+                required
+                className="border rounded px-2 py-1 w-full"
+                title="Student class"
+              >
+                <option value="">Select class...</option>
+                {CLASS_OPTIONS.map((cls) => (
+                  <option key={cls} value={cls}>
+                    {cls}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <DialogFooter className="mt-4">
