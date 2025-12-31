@@ -1,10 +1,7 @@
 import puppeteer from 'puppeteer';
 
 export async function htmlToPdfBuffer(html) {
-  const browser = await puppeteer.launch({ args: ['--no-sandbox'] });
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
-  await browser.close();
-  return pdfBuffer;
+  // Deprecated: Birthday PDF generation is no longer used.
+  // This function is now a stub and should not be called.
+  throw new Error('Birthday PDF generation is disabled. Use plain text emails instead.');
 }

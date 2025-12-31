@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import birthdayTemplate from '../templates/birthdayTemplate.js';
 import { sendBrevoEmail } from '../utils/sendBrevoEmail.js';
-import { htmlToPdfBuffer } from '../utils/htmlToPdf.js';
 
 // Use service role key for server-side access
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -145,23 +144,8 @@ export default async function handler(req, res) {
 
       if (pending.email_type === 'birthday') {
         subject = `A message from SURE FOUNDATION GROUP OF SCHOOL`;
-        message = `Find the attached PDF.`;
-        // Generate PDF from template
-        const html = birthdayTemplate({ studentName: pending.students?.student_name || 'your child' });
-        const pdfBuffer = await htmlToPdfBuffer(html);
-
-        // Upload PDF to Supabase Storage
-        const studentName = (pending.students?.student_name || 'student').replace(/\s+/g, '_');
-        const todayStr = new Date().toISOString().slice(0, 10);
-        const filePath = `attachments/SFGS_Greeting_${studentName}_${todayStr}.pdf`;
-        const { error: uploadError } = await supabase.storage.from('pdfs').upload(filePath, pdfBuffer, {
-          contentType: 'application/pdf',
-          upsert: true
-        });
-        if (uploadError) throw new Error('Failed to upload birthday PDF: ' + uploadError.message);
-
-        // Save the storage path as the attachment for this email
-        attachmentsArr = [filePath];
+        message = `Happy Birthday to your child! Wishing you a wonderful year ahead.`;
+        attachmentsArr = [];
       } else {
         // Defensive: parse attachments safely
         if (pending.attachments) {
