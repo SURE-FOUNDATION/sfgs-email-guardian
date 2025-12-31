@@ -142,7 +142,7 @@ export default async function handler(req, res) {
       let subject = pending.subject;
       let message = pending.message;
       if (pending.email_type === 'birthday') {
-        subject = `Happy Birthday from SFGS!`;
+        subject = `MESSAGE FROM SURE FOUNDATION GROUP OF SCHOOL`;
         message = birthdayTemplate({ studentName: pending.students?.student_name || 'your child' });
       }
 
