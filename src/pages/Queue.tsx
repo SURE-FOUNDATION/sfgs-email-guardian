@@ -17,6 +17,11 @@ import { Mail, RotateCcw, X } from "lucide-react";
 import { format } from "date-fns";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Pagination,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 const CLASS_OPTIONS = [
   "JSS1",
@@ -40,14 +45,22 @@ export default function Queue() {
   const [filter, setFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [classFilter, setClassFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
+  const [totalCount, setTotalCount] = useState(0);
 
   const fetchQueue = async () => {
-    const { data } = await supabase
+    setIsLoading(true);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const { data, count } = await supabase
       .from("email_queue")
-      .select("*, students(student_name, class)")
+      .select("*, students(student_name, class)", { count: "exact" })
       .order("prioritized_at", { ascending: false, nullsFirst: true })
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
     setQueue(data || []);
+    setTotalCount(count || 0);
     setIsLoading(false);
   };
 
@@ -64,7 +77,8 @@ export default function Queue() {
   useEffect(() => {
     fetchQueue();
     fetchCronEnabled();
-  }, []);
+    // eslint-disable-next-line
+  }, [page, filter, typeFilter, classFilter]);
 
   const handleRetry = async (id: string) => {
     await supabase
@@ -319,6 +333,39 @@ export default function Queue() {
             ))
           )}
         </div>
+        <div className="flex justify-center mt-4">
+          {totalCount > pageSize && (
+            <Pagination>
+              <PaginationPrevious
+                onClick={
+                  page === 1
+                    ? undefined
+                    : () => setPage((p) => Math.max(1, p - 1))
+                }
+                aria-disabled={page === 1}
+                tabIndex={page === 1 ? -1 : 0}
+                className={page === 1 ? "pointer-events-none opacity-50" : ""}
+              />
+              <span className="px-4 py-2 text-sm flex items-center">
+                Page {page} of {Math.max(1, Math.ceil(totalCount / pageSize))}
+              </span>
+              <PaginationNext
+                onClick={
+                  page * pageSize >= totalCount
+                    ? undefined
+                    : () => setPage((p) => p + 1)
+                }
+                aria-disabled={page * pageSize >= totalCount}
+                tabIndex={page * pageSize >= totalCount ? -1 : 0}
+                className={
+                  page * pageSize >= totalCount
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }
+              />
+            </Pagination>
+          )}
+        </div>
       </div>
       {/* Table for md+ screens only, inside Card */}
       <div className="hidden md:block">
@@ -533,6 +580,42 @@ export default function Queue() {
                 )}
               </TableBody>
             </Table>
+            <div className="flex justify-center mt-4">
+              {totalCount > pageSize && (
+                <Pagination>
+                  <PaginationPrevious
+                    onClick={
+                      page === 1
+                        ? undefined
+                        : () => setPage((p) => Math.max(1, p - 1))
+                    }
+                    aria-disabled={page === 1}
+                    tabIndex={page === 1 ? -1 : 0}
+                    className={
+                      page === 1 ? "pointer-events-none opacity-50" : ""
+                    }
+                  />
+                  <span className="px-4 py-2 text-sm flex items-center">
+                    Page {page} of{" "}
+                    {Math.max(1, Math.ceil(totalCount / pageSize))}
+                  </span>
+                  <PaginationNext
+                    onClick={
+                      page * pageSize >= totalCount
+                        ? undefined
+                        : () => setPage((p) => p + 1)
+                    }
+                    aria-disabled={page * pageSize >= totalCount}
+                    tabIndex={page * pageSize >= totalCount ? -1 : 0}
+                    className={
+                      page * pageSize >= totalCount
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </Pagination>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

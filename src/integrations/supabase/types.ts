@@ -146,6 +146,7 @@ export type Database = {
           parent_email_2: string | null
           student_name: string
           class: string | null
+          archived: boolean | null // <-- add this line
         }
         Insert: {
           created_at?: string
@@ -156,6 +157,7 @@ export type Database = {
           parent_email_2?: string | null
           student_name: string
           class?: string | null
+          archived?: boolean | null // <-- add this line
         }
         Update: {
           created_at?: string
@@ -166,6 +168,7 @@ export type Database = {
           parent_email_2?: string | null
           student_name?: string
           class?: string | null
+          archived?: boolean | null // <-- add this line
         }
         Relationships: []
       }

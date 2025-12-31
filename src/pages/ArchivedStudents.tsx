@@ -12,6 +12,11 @@ import {
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Pagination,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface Student {
   id: string;
@@ -41,21 +46,32 @@ export default function ArchivedStudents() {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
+  const [totalCount, setTotalCount] = useState(0);
 
   const fetchStudents = async () => {
     setIsLoading(true);
-    const { data } = await supabase
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const { data, count } = await supabase
       .from("students")
-      .select("*")
+      .select(
+        "id, student_name, matric_number, date_of_birth, parent_email_1, parent_email_2, class, archived",
+        { count: "exact" }
+      )
       .eq("archived", true)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
     setStudents((data || []).map((s: any) => ({ ...s, class: s.class || "" })));
+    setTotalCount(count || 0);
     setIsLoading(false);
   };
 
   useEffect(() => {
     fetchStudents();
-  }, []);
+    // eslint-disable-next-line
+  }, [page]);
 
   const handleUnarchive = async (student: Student) => {
     const { error } = await supabase
@@ -69,17 +85,6 @@ export default function ArchivedStudents() {
       fetchStudents();
     }
   };
-
-  const filteredStudents = students.filter((student) => {
-    const name = student.student_name.toLowerCase();
-    const studentId = student.matric_number.replace(/\s+/g, "").toLowerCase();
-    const searchValue = search.toLowerCase();
-    if (classFilter && student.class !== classFilter) return false;
-    if (!searchValue) return true;
-    if (studentId.includes(searchValue.replace(/\s+/g, ""))) return true;
-    const words = searchValue.split(/\s+/).filter(Boolean);
-    return words.every((word) => name.includes(word));
-  });
 
   return (
     <AdminLayout
@@ -142,7 +147,7 @@ export default function ArchivedStudents() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredStudents.map((student) => (
+                  students.map((student) => (
                     <TableRow key={student.id}>
                       <TableCell className="font-bold">
                         {student.student_name}
@@ -171,6 +176,39 @@ export default function ArchivedStudents() {
           </CardContent>
         </Card>
       </div>
+      <div className="flex justify-center mt-4">
+        {totalCount > pageSize && (
+          <Pagination>
+            <PaginationPrevious
+              onClick={
+                page === 1
+                  ? undefined
+                  : () => setPage((p) => Math.max(1, p - 1))
+              }
+              aria-disabled={page === 1}
+              tabIndex={page === 1 ? -1 : 0}
+              className={page === 1 ? "pointer-events-none opacity-50" : ""}
+            />
+            <span className="px-4 py-2 text-sm flex items-center">
+              Page {page} of {Math.max(1, Math.ceil(totalCount / pageSize))}
+            </span>
+            <PaginationNext
+              onClick={
+                page * pageSize >= totalCount
+                  ? undefined
+                  : () => setPage((p) => p + 1)
+              }
+              aria-disabled={page * pageSize >= totalCount}
+              tabIndex={page * pageSize >= totalCount ? -1 : 0}
+              className={
+                page * pageSize >= totalCount
+                  ? "pointer-events-none opacity-50"
+                  : ""
+              }
+            />
+          </Pagination>
+        )}
+      </div>
       {/* Mobile card view */}
       <div className="md:hidden">
         <div className="grid grid-cols-1 gap-3">
@@ -178,12 +216,12 @@ export default function ArchivedStudents() {
             <div className="col-span-full text-center py-8 text-muted-foreground">
               Loading...
             </div>
-          ) : filteredStudents.length === 0 ? (
+          ) : students.length === 0 ? (
             <div className="col-span-full text-center py-8 text-muted-foreground">
               No archived students found
             </div>
           ) : (
-            filteredStudents.map((student) => (
+            students.map((student) => (
               <Card
                 key={student.id}
                 className="flex flex-col h-full border p-3 shadow-sm"

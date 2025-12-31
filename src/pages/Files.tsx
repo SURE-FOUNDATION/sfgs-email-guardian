@@ -17,6 +17,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationPrevious,
+  PaginationNext,
+} from "@/components/ui/pagination";
 
 export default function Files() {
   const [files, setFiles] = useState<any[]>([]);
@@ -27,42 +32,30 @@ export default function Files() {
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [classFilter, setClassFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
+  const [totalCount, setTotalCount] = useState(0);
 
   async function fetchFiles() {
-    const { data } = await supabase
+    setIsLoading(true);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const { data, count } = await supabase
       .from("uploaded_files")
-      .select("*, students(student_name, class)")
-      .order("uploaded_at", { ascending: false });
+      .select("*, students(student_name, class)", { count: "exact" })
+      .order("uploaded_at", { ascending: false })
+      .range(from, to);
     setFiles(data || []);
+    setTotalCount(count || 0);
     setIsLoading(false);
   }
 
   useEffect(() => {
     fetchFiles();
-  }, []);
-
-  // Combined filter for name or matric number (order-insensitive for name, ignores spaces for matric)
-  const filteredFiles = files.filter((file) => {
-    const matric =
-      file.matric_number_parsed?.replace(/\s+/g, "").toLowerCase() || "";
-    const name = file.students?.student_name?.toLowerCase() || "";
-    const classValue = file.students?.class || "";
-    const searchValue = search.toLowerCase();
-    const uploadedDate = file.uploaded_at
-      ? new Date(file.uploaded_at).toISOString().slice(0, 10)
-      : "";
-    if (dateFilter && uploadedDate !== dateFilter) return false;
-    if (classFilter && classValue !== classFilter) return false;
-    if (!searchValue) return true;
-    // Matric: ignore spaces
-    if (matric.includes(searchValue.replace(/\s+/g, ""))) return true;
-    // Name: order-insensitive word match
-    const words = searchValue.split(/\s+/).filter(Boolean);
-    return words.every((word) => name.includes(word));
-  });
+    // eslint-disable-next-line
+  }, [page, search, dateFilter, classFilter]);
 
   async function handleDeleteFileConfirmed(file: any) {
-    // Find emails in queue referencing this file (by attachments array containing the file's storage_path)
     const { data: emails, error: emailErr } = await supabase
       .from("email_queue")
       .select("id, attachments");
@@ -70,7 +63,6 @@ export default function Files() {
       toast({ title: "Failed to check email queue", variant: "destructive" });
       return;
     }
-    // Find emails where attachments includes the file's storage_path (attachments may be JSON string or array)
     const emailsToDelete = (emails || []).filter((e: any) => {
       if (!e.attachments) return false;
       if (typeof e.attachments === "string") {
@@ -90,7 +82,6 @@ export default function Files() {
       const ids = emailsToDelete.map((e: any) => e.id);
       await supabase.from("email_queue").delete().in("id", ids);
     }
-    // Delete the file record
     const { error } = await supabase
       .from("uploaded_files")
       .delete()
@@ -155,12 +146,12 @@ export default function Files() {
               <div className="col-span-full text-center py-8 text-muted-foreground">
                 Loading...
               </div>
-            ) : filteredFiles.length === 0 ? (
+            ) : files.length === 0 ? (
               <div className="col-span-full text-center py-8 text-muted-foreground">
                 No files uploaded yet
               </div>
             ) : (
-              filteredFiles.map((file) => (
+              files.map((file) => (
                 <Card
                   key={file.id}
                   className="flex flex-col h-full border p-3 shadow-sm"
@@ -243,7 +234,7 @@ export default function Files() {
                       Loading...
                     </TableCell>
                   </TableRow>
-                ) : filteredFiles.length === 0 ? (
+                ) : files.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={7}
@@ -253,7 +244,7 @@ export default function Files() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredFiles.map((file) => (
+                  files.map((file) => (
                     <TableRow key={file.id} className="break-words">
                       <TableCell className="font-mono text-xs md:text-sm max-w-[120px] truncate whitespace-nowrap">
                         {file.original_file_name}
@@ -296,6 +287,40 @@ export default function Files() {
                 )}
               </TableBody>
             </Table>
+          </div>
+          {/* Pagination Controls */}
+          <div className="flex justify-center mt-4">
+            {totalCount > pageSize && (
+              <Pagination>
+                <PaginationPrevious
+                  onClick={
+                    page === 1
+                      ? undefined
+                      : () => setPage((p) => Math.max(1, p - 1))
+                  }
+                  aria-disabled={page === 1}
+                  tabIndex={page === 1 ? -1 : 0}
+                  className={page === 1 ? "pointer-events-none opacity-50" : ""}
+                />
+                <span className="px-4 py-2 text-sm flex items-center">
+                  Page {page} of {Math.max(1, Math.ceil(totalCount / pageSize))}
+                </span>
+                <PaginationNext
+                  onClick={
+                    page * pageSize >= totalCount
+                      ? undefined
+                      : () => setPage((p) => p + 1)
+                  }
+                  aria-disabled={page * pageSize >= totalCount}
+                  tabIndex={page * pageSize >= totalCount ? -1 : 0}
+                  className={
+                    page * pageSize >= totalCount
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </Pagination>
+            )}
           </div>
         </CardContent>
       </Card>

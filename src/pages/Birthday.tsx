@@ -4,6 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Pagination,
+  PaginationPrevious,
+  PaginationNext,
+} from "@/components/ui/pagination";
 
 interface Student {
   id: string;
@@ -70,22 +75,30 @@ export default function BirthdayPage() {
   const [birthdayFilter, setBirthdayFilter] =
     useState<BirthdayCategory>("today");
   const [classFilter, setClassFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
-    async function fetchStudents() {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("students")
-        .select("id, student_name, matric_number, date_of_birth, class");
-      if (!error && data) {
-        setStudents(
-          (data || []).map((s: any) => ({ ...s, class: s.class || "" }))
-        );
-      }
-      setLoading(false);
-    }
     fetchStudents();
-  }, []);
+    // eslint-disable-next-line
+  }, [page, filter, classFilter, birthdayFilter]);
+
+  const fetchStudents = async () => {
+    setLoading(true);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const { data, count } = await supabase
+      .from("students")
+      .select("id, student_name, matric_number, date_of_birth, class", {
+        count: "exact",
+      })
+      .order("date_of_birth", { ascending: true })
+      .range(from, to);
+    setStudents((data || []).map((s: any) => ({ ...s, class: s.class || "" })));
+    setTotalCount(count || 0);
+    setLoading(false);
+  };
 
   // Filter by name or matric number (order-insensitive)
   const filterWords = filter.toLowerCase().split(/\s+/).filter(Boolean);
@@ -190,6 +203,39 @@ export default function BirthdayPage() {
           )}
         </div>
       )}
+      <div className="flex justify-center mt-4">
+        {totalCount > pageSize && (
+          <Pagination>
+            <PaginationPrevious
+              onClick={
+                page === 1
+                  ? undefined
+                  : () => setPage((p) => Math.max(1, p - 1))
+              }
+              aria-disabled={page === 1}
+              tabIndex={page === 1 ? -1 : 0}
+              className={page === 1 ? "pointer-events-none opacity-50" : ""}
+            />
+            <span className="px-4 py-2 text-sm flex items-center">
+              Page {page} of {Math.max(1, Math.ceil(totalCount / pageSize))}
+            </span>
+            <PaginationNext
+              onClick={
+                page * pageSize >= totalCount
+                  ? undefined
+                  : () => setPage((p) => p + 1)
+              }
+              aria-disabled={page * pageSize >= totalCount}
+              tabIndex={page * pageSize >= totalCount ? -1 : 0}
+              className={
+                page * pageSize >= totalCount
+                  ? "pointer-events-none opacity-50"
+                  : ""
+              }
+            />
+          </Pagination>
+        )}
+      </div>
     </AdminLayout>
   );
 }

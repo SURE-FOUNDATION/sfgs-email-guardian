@@ -12,6 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { XCircle, RotateCcw } from "lucide-react";
@@ -33,22 +38,31 @@ export default function FailedEmails() {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState("");
   const [classFilter, setClassFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
+  const [totalCount, setTotalCount] = useState(0);
   const { toast } = useToast();
-
-  const fetch = async () => {
-    const { data } = await supabase
-      .from("email_queue")
-      .select("*, students(student_name, class), failed_at")
-      .eq("status", "failed")
-      .order("failed_at", { ascending: false })
-      .order("created_at", { ascending: false });
-    setEmails(data || []);
-    setIsLoading(false);
-  };
 
   useEffect(() => {
     fetch();
-  }, []);
+    // eslint-disable-next-line
+  }, [page, filter, classFilter]);
+
+  const fetch = async () => {
+    setIsLoading(true);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const { data, count } = await supabase
+      .from("email_queue")
+      .select("*, students(student_name, class), failed_at", { count: "exact" })
+      .eq("status", "failed")
+      .order("failed_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(from, to);
+    setEmails(data || []);
+    setTotalCount(count || 0);
+    setIsLoading(false);
+  };
 
   const handleRetry = async (id: string) => {
     await supabase
@@ -257,6 +271,39 @@ export default function FailedEmails() {
                 )}
               </TableBody>
             </Table>
+          </div>
+          <div className="flex justify-center mt-4">
+            {totalCount > pageSize && (
+              <Pagination>
+                <PaginationPrevious
+                  onClick={
+                    page === 1
+                      ? undefined
+                      : () => setPage((p) => Math.max(1, p - 1))
+                  }
+                  aria-disabled={page === 1}
+                  tabIndex={page === 1 ? -1 : 0}
+                  className={page === 1 ? "pointer-events-none opacity-50" : ""}
+                />
+                <span className="px-4 py-2 text-sm flex items-center">
+                  Page {page} of {Math.max(1, Math.ceil(totalCount / pageSize))}
+                </span>
+                <PaginationNext
+                  onClick={
+                    page * pageSize >= totalCount
+                      ? undefined
+                      : () => setPage((p) => p + 1)
+                  }
+                  aria-disabled={page * pageSize >= totalCount}
+                  tabIndex={page * pageSize >= totalCount ? -1 : 0}
+                  className={
+                    page * pageSize >= totalCount
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </Pagination>
+            )}
           </div>
         </CardContent>
       </Card>

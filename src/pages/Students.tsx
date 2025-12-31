@@ -23,6 +23,11 @@ import { Textarea } from "@/components/ui/textarea";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Pagination,
+  PaginationPrevious,
+  PaginationNext,
+} from "@/components/ui/pagination";
 
 interface Student {
   id: string;
@@ -71,22 +76,33 @@ export default function Students() {
   const [classFilter, setClassFilter] = useState("");
   const [showActionModal, setShowActionModal] = useState(false);
   const [actionStudent, setActionStudent] = useState<Student | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
+  const [totalCount, setTotalCount] = useState(0);
 
   const fetchStudents = async () => {
     setIsLoading(true);
-    const { data } = await supabase
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    // Use explicit column list to avoid deep type instantiation
+    const { data, count } = await supabase
       .from("students")
-      .select("*")
-      .eq("archived", false) // Only fetch non-archived students
-      .order("created_at", { ascending: false });
-    // Ensure class is always present
+      .select(
+        "id, student_name, matric_number, date_of_birth, parent_email_1, parent_email_2, class, archived",
+        { count: "exact" }
+      )
+      .eq("archived", false)
+      .order("created_at", { ascending: false })
+      .range(from, to);
     setStudents((data || []).map((s: any) => ({ ...s, class: s.class || "" })));
+    setTotalCount(count || 0);
     setIsLoading(false);
   };
 
   useEffect(() => {
     fetchStudents();
-  }, []);
+    // eslint-disable-next-line
+  }, [page]);
 
   const openAddModal = () => {
     setEditingStudent(null);
@@ -298,7 +314,7 @@ export default function Students() {
   const handleArchive = async (student: Student) => {
     const { error } = await supabase
       .from("students")
-      .update({ archived: true })
+      .update({ archived: true as any })
       .eq("id", student.id);
     if (error) {
       toast({ title: "Failed to archive student", variant: "destructive" });
@@ -502,6 +518,42 @@ export default function Students() {
                 )}
               </TableBody>
             </Table>
+            <div className="flex justify-center mt-4">
+              {totalCount > pageSize && (
+                <Pagination>
+                  <PaginationPrevious
+                    onClick={
+                      page === 1
+                        ? undefined
+                        : () => setPage((p) => Math.max(1, p - 1))
+                    }
+                    aria-disabled={page === 1}
+                    tabIndex={page === 1 ? -1 : 0}
+                    className={
+                      page === 1 ? "pointer-events-none opacity-50" : ""
+                    }
+                  />
+                  <span className="px-4 py-2 text-sm flex items-center">
+                    Page {page} of{" "}
+                    {Math.max(1, Math.ceil(totalCount / pageSize))}
+                  </span>
+                  <PaginationNext
+                    onClick={
+                      page * pageSize >= totalCount
+                        ? undefined
+                        : () => setPage((p) => p + 1)
+                    }
+                    aria-disabled={page * pageSize >= totalCount}
+                    tabIndex={page * pageSize >= totalCount ? -1 : 0}
+                    className={
+                      page * pageSize >= totalCount
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </Pagination>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
