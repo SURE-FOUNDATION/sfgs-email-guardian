@@ -303,7 +303,7 @@ export default async function handler(req, res) {
       
       // Log error
       try {
-        await supabase.from('email_queue').update({ status: 'failed', error_message: err.message }).eq('id', pending.id);
+        await supabase.from('email_queue').update({ status: 'failed', error_message: err.message, failed_at: new Date().toISOString() }).eq('id', pending.id);
         await supabase.from('system_logs').insert({
           type: 'email',
           message: `Email failed to ${pending.recipient_email}: ${err.message}`,

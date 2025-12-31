@@ -77,6 +77,7 @@ export type Database = {
           message: string | null
           attachments: Json | null
           queued_at: string | null
+          failed_at: string | null // <-- add this line
         }
         Insert: {
           created_at?: string
@@ -93,6 +94,7 @@ export type Database = {
           message?: string | null
           attachments?: Json | null
           queued_at?: string | null
+          failed_at?: string | null // <-- add this line
         }
         Update: {
           created_at?: string
@@ -109,6 +111,7 @@ export type Database = {
           message?: string | null
           attachments?: Json | null
           queued_at?: string | null
+          failed_at?: string | null // <-- add this line
         }
         Relationships: [
           {

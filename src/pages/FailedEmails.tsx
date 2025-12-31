@@ -38,8 +38,9 @@ export default function FailedEmails() {
   const fetch = async () => {
     const { data } = await supabase
       .from("email_queue")
-      .select("*, students(student_name, class)")
+      .select("*, students(student_name, class), failed_at")
       .eq("status", "failed")
+      .order("failed_at", { ascending: false })
       .order("created_at", { ascending: false });
     setEmails(data || []);
     setIsLoading(false);
@@ -52,7 +53,7 @@ export default function FailedEmails() {
   const handleRetry = async (id: string) => {
     await supabase
       .from("email_queue")
-      .update({ status: "pending", error_message: null })
+      .update({ status: "pending", error_message: null, failed_at: null })
       .eq("id", id);
     toast({ title: "Email re-queued for retry" });
     fetch();
@@ -141,9 +142,21 @@ export default function FailedEmails() {
                     </div>
                     <div className="text-xs text-muted-foreground">
                       <span className="font-semibold">Failed At:</span>{" "}
-                      {item.failed_at
-                        ? format(new Date(item.failed_at), "PPpp")
+                      {item.failed_at || item.created_at
+                        ? format(
+                            new Date(item.failed_at || item.created_at),
+                            "PPpp"
+                          )
                         : "-"}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleRetry(item.id)}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -159,19 +172,20 @@ export default function FailedEmails() {
                   <TableHead>Type</TableHead>
                   <TableHead>Class</TableHead>
                   <TableHead>Failed At</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center">
+                    <TableCell colSpan={6} className="text-center">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredEmails.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       className="text-center text-muted-foreground"
                     >
                       No failed emails
@@ -192,9 +206,21 @@ export default function FailedEmails() {
                       </TableCell>
                       <TableCell>{item.students?.class || "-"}</TableCell>
                       <TableCell>
-                        {item.failed_at
-                          ? format(new Date(item.failed_at), "PPpp")
+                        {item.failed_at || item.created_at
+                          ? format(
+                              new Date(item.failed_at || item.created_at),
+                              "PPpp"
+                            )
                           : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRetry(item.id)}
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
