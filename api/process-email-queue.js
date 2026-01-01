@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import birthdayTemplate from '../templates/birthdayTemplate.js';
+import { getBirthdayHtml } from '../templates/birthdayTemplate.js';
 import { sendBrevoEmail } from '../utils/sendBrevoEmail.js';
 
 // Use service role key for server-side access
@@ -144,7 +144,7 @@ export default async function handler(req, res) {
 
       if (pending.email_type === 'birthday') {
         subject = `A message from SURE FOUNDATION GROUP OF SCHOOL`;
-        message = 'A message from SFGS<br><br>' + birthdayTemplate({ studentName: pending.students?.student_name || 'your child' }) + '<br><br>From SFGS';
+        message = 'A message from SFGS<br><br>' + getBirthdayHtml({ studentName: pending.students?.student_name || 'your child' }) + '<br><br>From SFGS';
         attachmentsArr = [];
       } else {
         // Defensive: parse attachments safely

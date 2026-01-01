@@ -2,7 +2,7 @@
 // Endpoint to queue birthday emails for students whose birthday is today
 
 import { createClient } from '@supabase/supabase-js';
-import birthdayTemplate from '../templates/birthdayTemplate.js';
+import { getBirthdayHtml } from '../templates/birthdayTemplate.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
         if (existing && existing.length > 0) continue;
         // Compose personalized birthday message
         const subject = `MESSAGE FROM SURE FOUNDATION GROUP OF SCHOOL`;
-        const message = birthdayTemplate({ studentName: student.student_name });
+        const message = getBirthdayHtml({ studentName: student.student_name });
         const { error: insertError } = await supabase.from('email_queue').insert({
           matric_number: student.matric_number,
           recipient_email: parentEmail,
