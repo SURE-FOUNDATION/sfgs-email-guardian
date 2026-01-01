@@ -144,7 +144,7 @@ export default async function handler(req, res) {
 
       if (pending.email_type === 'birthday') {
         subject = `A message from SURE FOUNDATION GROUP OF SCHOOL`;
-        message = 'A message from SFGS<br><br>' + getBirthdayHtml({ studentName: pending.students?.student_name || 'your child' }) + '<br><br>From SFGS';
+        message = getBirthdayHtml({ studentName: pending.students?.student_name || 'your child' }) + '<br><br>From SURE FOUNDATION GROUP OF SCHOOL TEAM';
         attachmentsArr = [];
       } else {
         // Defensive: parse attachments safely
